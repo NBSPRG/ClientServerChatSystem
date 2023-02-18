@@ -1,81 +1,65 @@
-// Client Side program to test
-// the TCP server that returns
-// a 'hi client' message
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <unistd.h>
-
-// PORT number
-#define PORT 4444
+#include <string.h>
 
 int main()
 {
-	// Socket id
-	int clientSocket, ret;
+	// create a socket
+	int network_socket;
+	int error_check;
+	network_socket = socket(AF_INET, SOCK_STREAM, 0); //ipv4,tcp,define protocol 0 is for tcp
 
-	// Client socket structure
-	struct sockaddr_in serverAddr;
+	// specify an address for the socket to connect to
+	struct sockaddr_in server_address;
+	server_address.sin_family = AF_INET;     	//ipv4
+	server_address.sin_port = htons(9001);   	//port to connect to
+	server_address.sin_addr.s_addr = INADDR_ANY; // connect to any ip on localhost
 
-	// char array to store incoming message
-	char buffer[1024];
+	//socket, pointer to server address to conect to, size of server address
+	int connection_status = connect(network_socket, (struct sockaddr *)&server_address, sizeof(server_address));
 
-	// Creating socket id
-	clientSocket = socket(AF_INET,
-						SOCK_STREAM, 0);
-
-	if (clientSocket < 0) {
-		printf("Error in connection.\n");
-		exit(1);
-	}
-	printf("Client Socket is created.\n");
-
-	// Initializing socket structure with NULL
-	memset(&serverAddr, '\0', sizeof(serverAddr));
-
-	// Initializing buffer array with NULL
-	memset(buffer, '\0', sizeof(buffer));
-
-	// Assigning port number and IP address
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(PORT);
-
-	// 127.0.0.1 is Loopback IP
-	serverAddr.sin_addr.s_addr
-		= inet_addr("127.0.0.1");
-
-	// connect() to connect to the server
-	ret = connect(clientSocket,
-				(struct sockaddr*)&serverAddr,
-				sizeof(serverAddr));
-
-	if (ret < 0) {
-		printf("Error in connection.\n");
-		exit(1);
+	// check for error with the connection
+	if (connection_status == -1)
+	{
+    	printf("There was an error making a connection to the remote socket\n\n");
 	}
 
-	printf("Connected to Server.\n");
+	// recieve data from the server
+	char server_response[256];
+	while (1)
+	{
+    	printf("Client: ");
 
-	while (1) {
+    	fgets(server_response, sizeof(server_response), stdin);
 
-		// recv() receives the message
-		// from server and stores in buffer
-		if (recv(clientSocket, buffer, 1024, 0)
-			< 0) {
-			printf("Error in receiving data.\n");
-		}
+    	if (strncmp(server_response, "bye", 3) == 0)
+    	{
+        	break;
+    	}
 
-		// Printing the message on screen
-		else {
-			printf("Server: %s\n", buffer);
-			bzero(buffer, sizeof(buffer));
-		}
+    	error_check = send(network_socket, &server_response, sizeof(server_response), 0);
+    	if (error_check == -1)
+    	{
+        	printf("error sending message\n");
+        	exit(1);
+    	}
+
+    	error_check = recv(network_socket, &server_response, sizeof(server_response), 0);
+    	if (error_check == -1)
+    	{
+        	printf("error receiving message\n");
+        	exit(1);
+    	}
+
+    	printf("Server: %s", server_response);
 	}
+
+	// close the socket
+	close(network_socket);
 
 	return 0;
 }
